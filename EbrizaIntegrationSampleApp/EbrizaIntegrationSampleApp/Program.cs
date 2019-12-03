@@ -31,14 +31,30 @@ namespace EbrizaIntegrationSampleApp
             //Now we have access to the Ebriza Client's; Available Endpoints: https://ebriza.com/docs/api
 
             //First, we must get all the client's locations, because we'll need them for most of the API requests (API: https://ebriza.com/docs/api#Getcompanylocations):
+            //A company can (and many do) have multiple locations, with specific products, prices, etc.
             CompanyLocation[] companyLocations = await ebrizaClient.Get<CompanyLocation[]>("company/locations");
 
-            //Let's get the company's products and categories (https://ebriza.com/docs/api#Listitems):
-            Item[] productsAndCategories = await ebrizaClient.Get<Item[]>("items", new System.Collections.Generic.Dictionary<string, object> { { "locationid", companyLocations.First().ID } });
+            Console.WriteLine();
+            Console.WriteLine($"{companyLocations.Length} locations: {string.Join(", ", companyLocations.Select(x => x.Name))}");
+            Console.WriteLine();
+
+            //Let's get the company's products and categories for the first location (https://ebriza.com/docs/api#Listitems):
+            Item[] productsAndCategories = await ebrizaClient.Get<Item[]>("items",
+                new System.Collections.Generic.Dictionary<string, object> {
+                    { "locationid", companyLocations.First().ID }
+                }
+            );
 
             Item[] products = productsAndCategories.Where(x => !x.IsCategory).ToArray();
             Item[] categories = productsAndCategories.Where(x => x.IsCategory).ToArray();
 
+            Console.WriteLine();
+            Console.WriteLine($"{categories.Length} categories: {string.Join(", ", categories.Select(x => x.Name))}");
+            Console.WriteLine();
+            Console.WriteLine($"{products.Length} products: {string.Join(", ", products.Select(x => x.Name))}");
+            Console.WriteLine();
+
+            Console.WriteLine();
             Console.WriteLine($"Done @ {DateTime.Now}");
             Console.ReadLine();
         }
@@ -49,12 +65,12 @@ namespace EbrizaIntegrationSampleApp
         public Guid ID { get; set; }
         public string Name { get; set; }
 
-        //We can map the Address here as well if needed
+        //We can map the Address here as well if needed.
     }
 
     class Item
     {
-        public Guid? ID { get; set; }
+        public Guid ID { get; set; }
         public Guid? CategoryID { get; set; }
         public string Name { get; set; }
         public string CategoryName { get; set; }
@@ -62,5 +78,7 @@ namespace EbrizaIntegrationSampleApp
         public decimal? Price { get; set; }
         public bool IsCategory { get; set; }
         public bool HasProducts { get; set; }
+
+        //We can map additional properties here if needed; they're all described in the online documentation.
     }
 }
