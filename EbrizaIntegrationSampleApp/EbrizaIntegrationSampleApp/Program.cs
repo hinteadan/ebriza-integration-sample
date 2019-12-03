@@ -48,10 +48,34 @@ namespace EbrizaIntegrationSampleApp
             Item[] products = productsAndCategories.Where(x => !x.IsCategory).ToArray();
             Item[] categories = productsAndCategories.Where(x => x.IsCategory).ToArray();
 
+
             Console.WriteLine();
             Console.WriteLine($"{categories.Length} categories: {string.Join(", ", categories.Select(x => x.Name))}");
             Console.WriteLine();
             Console.WriteLine($"{products.Length} products: {string.Join(", ", products.Select(x => x.Name))}");
+            Console.WriteLine();
+
+
+
+            //Now, the juciy stuff: let's open a bill on the company's POS
+            //First we need the list of tables on the location to know on which table we put the order:
+            LocationTable[] tables = await ebrizaClient.Get<LocationTable[]>("tables", new System.Collections.Generic.Dictionary<string, object> {
+                { "locationid", companyLocations.First().ID }
+            });
+            LocationTable tableToPutTheBillOn = tables.First();
+            string result = await ebrizaClient.Post("bills/open", new OpenBillRequest
+            {
+                TableID = tableToPutTheBillOn.ID,
+                Items = new OpenBillItem[] {
+                    new OpenBillItem {
+                        ID = products.First().ID,
+                        Quantity = 10,
+                    }
+                },
+            });
+
+            Console.WriteLine();
+            Console.WriteLine($"Open Bill Result: {result}");
             Console.WriteLine();
 
             Console.WriteLine();
@@ -80,5 +104,27 @@ namespace EbrizaIntegrationSampleApp
         public bool HasProducts { get; set; }
 
         //We can map additional properties here if needed; they're all described in the online documentation.
+    }
+
+    class LocationTable
+    {
+        public Guid ID { get; set; }
+        public string Name { get; set; }
+        public Guid RoomID { get; set; }
+        public string RoomName { get; set; }
+        public bool Occupied { get; set; }
+    }
+
+    class OpenBillRequest
+    {
+        public Guid TableID { get; set; }
+        public OpenBillItem[] Items { get; set; } = new OpenBillItem[0];
+    }
+
+    class OpenBillItem
+    {
+        public Guid? ID { get; set; }
+        public string SKU { get; set; }
+        public decimal Quantity { get; set; } = 1;
     }
 }
