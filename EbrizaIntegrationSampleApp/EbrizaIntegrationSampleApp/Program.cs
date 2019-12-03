@@ -71,6 +71,7 @@ namespace EbrizaIntegrationSampleApp
 
             //Now, the juciy stuff: let's open a bill on the company's POS
             //First we need the list of tables on the location to know on which table we put the order:
+            //If we want to open a delivery bill (that's a bill that will be delivered to the client, and not bound to a table at the location), than we MUST omit this part (not send the TableID)
             LocationTable[] tables = await ebrizaDataReaderClient.Get<LocationTable[]>("tables", new System.Collections.Generic.Dictionary<string, object> {
                 { "locationid", companyLocations.First().ID }
             });
