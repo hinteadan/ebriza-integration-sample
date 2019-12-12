@@ -36,6 +36,32 @@ namespace EbrizaIntegrationSampleApp
         static void Main(string[] args) => MainAsync(args).Wait();
         static async Task MainAsync(string[] args)
         {
+            //Now let's play with WebHooks
+            //First we need to start an HTTP Server. We'll run a Nancy Self Hosted HTTP server, publicly exposed using ngrok;
+            //In a real scenario this is usually replaced by the Web App itself, served via IIS or Apache or some other production wise HTTP Server.
+            Console.WriteLine();
+            Console.WriteLine($"Webhooks Playground Starts here");
+            HttpServer httpServer = new HttpServer();
+
+            //This is, of course, not needed in a real app, since the URL is already exposed to the Internet
+            httpServer.OnPublicUrlAcquired += (_, e) =>
+            {
+                
+            };
+
+            httpServer.Start();
+            Console.ReadLine();
+            httpServer.Stop();
+
+            return;
+
+
+
+
+
+
+
+
             //Construct the Ebriza Client API interactor. Available as NuGet Package: https://www.nuget.org/packages/EbrizaAPI
             EbrizaAPI.Client ebrizaDataReaderClient = new EbrizaAPI.Client(appPublicKey, appSecretKey, appClientId);
             EbrizaAPI.Client ebrizaBillOpenerClient = new EbrizaAPI.Client(billOpenerAppPublicKey, billOpenerAppSecretKey, billOpenerAppClientId);
@@ -87,9 +113,14 @@ namespace EbrizaIntegrationSampleApp
                 },
             });
 
+
             //Console.WriteLine();
             Console.WriteLine($"Open Bill Result: {result}");
             Console.WriteLine();
+
+
+
+
 
             Console.WriteLine();
             Console.WriteLine($"Done @ {DateTime.Now}");
