@@ -1,4 +1,5 @@
-﻿using System;
+﻿using EbrizaAPI;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -36,32 +37,6 @@ namespace EbrizaIntegrationSampleApp
         static void Main(string[] args) => MainAsync(args).Wait();
         static async Task MainAsync(string[] args)
         {
-            //Now let's play with WebHooks
-            //First we need to start an HTTP Server. We'll run a Nancy Self Hosted HTTP server, publicly exposed using ngrok;
-            //In a real scenario this is usually replaced by the Web App itself, served via IIS or Apache or some other production wise HTTP Server.
-            Console.WriteLine();
-            Console.WriteLine($"Webhooks Playground Starts here");
-            HttpServer httpServer = new HttpServer();
-
-            //This is, of course, not needed in a real app, since the URL is already exposed to the Internet
-            httpServer.OnPublicUrlAcquired += (_, e) =>
-            {
-                
-            };
-
-            httpServer.Start();
-            Console.ReadLine();
-            httpServer.Stop();
-
-            return;
-
-
-
-
-
-
-
-
             //Construct the Ebriza Client API interactor. Available as NuGet Package: https://www.nuget.org/packages/EbrizaAPI
             EbrizaAPI.Client ebrizaDataReaderClient = new EbrizaAPI.Client(appPublicKey, appSecretKey, appClientId);
             EbrizaAPI.Client ebrizaBillOpenerClient = new EbrizaAPI.Client(billOpenerAppPublicKey, billOpenerAppSecretKey, billOpenerAppClientId);
@@ -122,9 +97,66 @@ namespace EbrizaIntegrationSampleApp
 
 
 
+            //Now let's play with WebHooks
+            //First we need to start an HTTP Server. We'll run a Nancy Self Hosted HTTP server, publicly exposed using ngrok;
+            //In a real scenario this is usually replaced by the Web App itself, served via IIS or Apache or some other production wise HTTP Server.
+            Console.WriteLine();
+            Console.WriteLine($"Webhooks Playground Starts here");
+            HttpServer httpServer = new HttpServer();
+
+            //This is, of course, not needed in a real app, since the URL is already exposed to the Internet
+            httpServer.OnPublicUrlAcquired += async (_, arg) =>
+            {
+                string webhookUrl = $"{arg.PublicUrl}/ebrizawebhook";
+
+                //Let's register our webhook with Ebriza
+                await ebrizaDataReaderClient.Post("webhooks/subscribe", new WebHookSubscribeRequest { CallbackUrl = webhookUrl, Entity = WebHookEntityType.Bill });
+                await ebrizaDataReaderClient.Post("webhooks/subscribe", new WebHookSubscribeRequest { CallbackUrl = webhookUrl, Entity = WebHookEntityType.Order });
+
+                //Now let's open a Bill so we trigger the webhook
+                await OpenNewBill(ebrizaDataReaderClient, ebrizaBillOpenerClient, companyLocations, products);
+            };
+
+            HttpServer.OnEbrizaWebhook += (_, arg) =>
+            {
+                Console.WriteLine("Received Notification from Ebriza");
+                Console.WriteLine($"Changed Entity: {arg.Entity} with id {arg.ID}");
+                //Here we can use the API to fetcg the changed Order or Bill Details and see its changes
+            };
+
+            httpServer.Start();
+            Console.ReadLine();
+            httpServer.Stop();
+
+            //Let's unregister our webhook with Ebriza
+            await ebrizaDataReaderClient.Post("webhooks/unsubscribe", new WebHookUnsubscribeRequest { Entity = WebHookEntityType.Bill });
+            await ebrizaDataReaderClient.Post("webhooks/unsubscribe", new WebHookUnsubscribeRequest { Entity = WebHookEntityType.Order });
+
+
+
+
+
             Console.WriteLine();
             Console.WriteLine($"Done @ {DateTime.Now}");
             Console.ReadLine();
+        }
+
+        private static async Task OpenNewBill(Client ebrizaDataReaderClient, Client ebrizaBillOpenerClient, CompanyLocation[] companyLocations, Item[] products)
+        {
+            LocationTable[] tables = await ebrizaDataReaderClient.Get<LocationTable[]>("tables", new System.Collections.Generic.Dictionary<string, object> {
+                { "locationid", companyLocations.First().ID }
+            });
+            LocationTable tableToPutTheBillOn = tables.First();
+            string result = await ebrizaBillOpenerClient.Post("bills/open", new OpenBillRequest
+            {
+                TableID = tableToPutTheBillOn.ID,
+                Items = new OpenBillItem[] {
+                    new OpenBillItem {
+                        ID = products.First().ID,
+                        Quantity = 10,
+                    }
+                },
+            });
         }
     }
 
@@ -170,5 +202,29 @@ namespace EbrizaIntegrationSampleApp
         public Guid? ID { get; set; }
         public string SKU { get; set; }
         public decimal Quantity { get; set; } = 1;
+    }
+
+    public enum WebHookEntityType
+    {
+        Order = 0, //Orders are closed sales, paid for
+        Bill = 1, //Bills are opened sales which are not yet closes, not yet paid for
+    }
+
+    class WebHookSubscribeRequest
+    {
+        public string CallbackUrl { get; set; }
+        public WebHookEntityType Entity { get; set; }
+    }
+
+    class WebHookUnsubscribeRequest
+    {
+        public WebHookEntityType Entity { get; set; }
+    }
+
+    public class WebHookEventArgs : EventArgs
+    {
+        public Guid ID { get; set; }
+        public Guid EbrizaclientID { get; set; }
+        public WebHookEntityType Entity { get; set; }
     }
 }

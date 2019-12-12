@@ -1,5 +1,6 @@
 ﻿using Nancy;
 using Nancy.Hosting.Self;
+using Nancy.ModelBinding;
 using System;
 using System.Diagnostics;
 using System.Linq;
@@ -13,6 +14,8 @@ namespace EbrizaIntegrationSampleApp
         const string baseUrl = "http://localhost:9999";
 
         public event EventHandler<PublicUrlAcquiredEventArgs> OnPublicUrlAcquired;
+
+        public static event EventHandler<WebHookEventArgs> OnEbrizaWebhook;
 
         readonly Thread httpServerThread;
         readonly NancyHost nancyHost;
@@ -66,6 +69,11 @@ namespace EbrizaIntegrationSampleApp
         {
             httpServerThread.Abort();
         }
+
+        public static void RaiseOnEbrizaWebhook(WebHookEventArgs args)
+        {
+            OnEbrizaWebhook?.Invoke(null, args);
+        }
     }
 
     public class NgrokTunnels
@@ -94,6 +102,16 @@ namespace EbrizaIntegrationSampleApp
         public HttpEndpoints() : base()
         {
             Get("/ping", _ => $"pong @ {DateTime.Now}");
+            Get("/ebrizawebhook", _ => $"Ebriza WebHook Alive @ {DateTime.Now}");
+            Post("/ebrizawebhook", _ =>
+            {
+
+                WebHookEventArgs args = this.Bind<WebHookEventArgs>();
+
+                HttpServer.RaiseOnEbrizaWebhook(args);
+
+                return HttpStatusCode.OK;
+            });
         }
     }
 }
