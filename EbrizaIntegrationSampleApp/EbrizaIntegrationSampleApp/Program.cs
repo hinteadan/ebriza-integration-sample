@@ -117,11 +117,20 @@ namespace EbrizaIntegrationSampleApp
                 await OpenNewBill(ebrizaDataReaderClient, ebrizaBillOpenerClient, companyLocations, products);
             };
 
-            HttpServer.OnEbrizaWebhook += (_, arg) =>
+            HttpServer.OnEbrizaWebhook += async (_, arg) =>
             {
                 Console.WriteLine("Received Notification from Ebriza");
-                Console.WriteLine($"Changed Entity: {arg.Entity} with id {arg.ID}");
+                Console.WriteLine($"Entity: {arg.Entity} with id {arg.ID}");
                 //Here we can use the API to fetcg the changed Order or Bill Details and see its changes
+                //For instance let's fetch the entity
+                if(arg.Entity == WebHookEntityType.Bill)
+                {
+                    dynamic bill = await ebrizaBillOpenerClient.Get<dynamic>($"bills/get/{arg.ID}");
+                }
+                else if (arg.Entity == WebHookEntityType.Order)
+                {
+                    dynamic closedBill = await ebrizaDataReaderClient.Get<dynamic>($"orders/get/{arg.ID}");
+                }
             };
 
             httpServer.Start();
